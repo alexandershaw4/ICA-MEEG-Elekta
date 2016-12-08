@@ -1,6 +1,6 @@
 function S = FastICA_MEEG_AS(ID,NC)
 
-addpath('~/Downloads/FastICA_25/'); review = 1; w = 10;
+addpath('~/Downloads/FastICA_25/'); review = 1; w = 2;
 
 EOG(1) = find(strcmp(ID.chanlabels,'EOG061'));
 EOG(2) = find(strcmp(ID.chanlabels,'EOG062'));
@@ -62,12 +62,15 @@ for t = 1:nc
         
         if any(p < thrp)
             fprintf('found EOG correlated component: %d ... ',i);
+            n = 0;
             
             while any(p < thrp*w)
+                n = n + 1;
                 fprintf('robust removing\n');
                 C(i,:) = Orthog(c,e,p,thrp*w);
                 c      = C(i,:);
                 [~,p]  = corr(c', e');
+                if n == 64; break; end
             end
         end
     end
@@ -89,11 +92,14 @@ for t = 1:nc
         
         if any(p < thrp)
             fprintf('topography correlated GRAD component: %d ... ',i);
+            n = 0;
             
             while any(p < thrp*w)
+                n = n + 1;
                 fprintf('robust removing\n');
                 iWP(:,i) = Orthog(iWP(:,i)',PL',p,thrp*w);
                 [~,p]    = corr(iWP(:,i),PL);
+                if n == 64; break; end
             end
         end
         
@@ -103,11 +109,14 @@ for t = 1:nc
         
         if any(p < thrp)
             fprintf('topography correlated MAG component: %d ... ',i);
+            n = 0;
             
             while any(p < thrp*w)
+                n = n + 1;
                 fprintf('robust removing\n');
                 iWM(:,i) = Orthog(iWM(:,i)',MG',p,thrp*w);
                 [~,p]    = corr(iWM(:,i),MG);
+                if n == 64; break; end
             end
         end        
     end
@@ -142,15 +151,12 @@ if ~isempty(v)
     for j = 1:length(v)
         % Regression apparatus
         
-        %     try   O = O + (.2*c)+(.8*(c-polyval(polyfit(e(v(j),:),c,1),e(v(j),:))));
-        %     catch O =     (.5*c)+(.5*(c-polyval(polyfit(e(v(j),:),c,1),e(v(j),:))));
-        %     end
-        try   O = O + (c-(polyval(polyfit(e(v(j),:),c,1),e(v(j),:))));
-        catch O =     (c-(polyval(polyfit(e(v(j),:),c,1),e(v(j),:))));
+        s       = HighResMeanFilt(polyval(polyfit(e(v(j),:),c,1),e(v(j),:)),1,8);  
+        try   O = O + s;
+        catch O =     s;
         end
     end
     
-    O = PEig(O);
     O = O/j;
 else
     O = c;
