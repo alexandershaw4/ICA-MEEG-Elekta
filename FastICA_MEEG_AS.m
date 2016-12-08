@@ -1,6 +1,6 @@
 function S = FastICA_MEEG_AS(ID,NC)
 
-addpath('~/Downloads/FastICA_25/'); review = 1;
+addpath('~/Downloads/FastICA_25/'); review = 1; w = 10;
 
 EOG(1) = find(strcmp(ID.chanlabels,'EOG061'));
 EOG(2) = find(strcmp(ID.chanlabels,'EOG062'));
@@ -58,14 +58,14 @@ for t = 1:nc
         e = EOG(:,:,t);
         c = C  (i,:);
         
-        [~,p]=corr(c', e');
+        [~,p] = corr(c', e');
         
         if any(p < thrp)
             fprintf('found EOG correlated component: %d ... ',i);
             
-            while any(p < thrp)
+            while any(p < thrp*w)
                 fprintf('robust removing\n');
-                C(i,:) = Orthog(c,e,p,thrp);
+                C(i,:) = Orthog(c,e,p,thrp*w);
                 c      = C(i,:);
                 [~,p]  = corr(c', e');
             end
@@ -82,8 +82,7 @@ for t = 1:nc
     PL = [TOP.VEOG{2} TOP.HEOG{2}];
     MG = [TOP.VEOG{1} TOP.HEOG{1}];
     
-    for i = 1:size(iW,2);
-        
+    for i = 1:size(iW,2);       
         
         % Planar topographies
         [~,p] = corr(iWP(:,i),PL);
@@ -91,9 +90,9 @@ for t = 1:nc
         if any(p < thrp)
             fprintf('topography correlated GRAD component: %d ... ',i);
             
-            while any(p < thrp)
+            while any(p < thrp*w)
                 fprintf('robust removing\n');
-                iWP(:,i) = Orthog(iWP(:,i)',PL',p,thrp);
+                iWP(:,i) = Orthog(iWP(:,i)',PL',p,thrp*w);
                 [~,p]    = corr(iWP(:,i),PL);
             end
         end
@@ -105,9 +104,9 @@ for t = 1:nc
         if any(p < thrp)
             fprintf('topography correlated MAG component: %d ... ',i);
             
-            while any(p < thrp)
+            while any(p < thrp*w)
                 fprintf('robust removing\n');
-                iWM(:,i) = Orthog(iWM(:,i)',MG',p,thrp);
+                iWM(:,i) = Orthog(iWM(:,i)',MG',p,thrp*w);
                 [~,p]    = corr(iWM(:,i),MG);
             end
         end        
@@ -128,25 +127,35 @@ end
 
 
 % return
-S = clone(ID,['ica_' ID.fname]);     % clone input
+S = clone(ID,['nica_' ID.fname]);     % clone input
 S(sort(unique([EEG MEG])),:,:) = D;  % update selected channel subspace
 S.save;
 
 end
 
-function O = Orthog(c,e,p,thrp)
+function O = Orthog(c,e,p,thrp,W)
 
 v = find(p<thrp); % vert or horz
 
-for j = 1:length(v)
-    % Regression apparatus
-    
-    try   O = O + (.5*c)+(.5*(c-polyval(polyfit(e(v(j),:),c,1),e(v(j),:))));
-    catch O =     (.5*c)+(.5*(c-polyval(polyfit(e(v(j),:),c,1),e(v(j),:))));
+
+if ~isempty(v)
+    for j = 1:length(v)
+        % Regression apparatus
+        
+        %     try   O = O + (.2*c)+(.8*(c-polyval(polyfit(e(v(j),:),c,1),e(v(j),:))));
+        %     catch O =     (.5*c)+(.5*(c-polyval(polyfit(e(v(j),:),c,1),e(v(j),:))));
+        %     end
+        try   O = O + (c-(polyval(polyfit(e(v(j),:),c,1),e(v(j),:))));
+        catch O =     (c-(polyval(polyfit(e(v(j),:),c,1),e(v(j),:))));
+        end
     end
+    
+    O = PEig(O);
+    O = O/j;
+else
+    O = c;
 end
 
-O = O/j;
-
 end
+
 

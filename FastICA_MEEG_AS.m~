@@ -1,6 +1,6 @@
 function S = FastICA_MEEG_AS(ID,NC)
 
-addpath('~/Downloads/FastICA_25/'); review = 0;
+addpath('~/Downloads/FastICA_25/'); review = 1; w = 1;
 
 EOG(1) = find(strcmp(ID.chanlabels,'EOG061'));
 EOG(2) = find(strcmp(ID.chanlabels,'EOG062'));
@@ -58,7 +58,7 @@ for t = 1:nc
         e = EOG(:,:,t);
         c = C  (i,:);
         
-        [~,p]=corr(c', e');
+        [~,p] = corr(c', e');
         
         if any(p < thrp)
             fprintf('found EOG correlated component: %d ... ',i);
@@ -71,14 +71,7 @@ for t = 1:nc
             end
         end
     end
-    
-    % review?
-    if review
-        check_covar_ica(cD,(C'*pinv(W)')');
-    end
-    
-    % store
-    %D(:,:,t) = ( C'*pinv(W)' )';
+
     
     % Topography correlated
     %----------------------------------
@@ -86,16 +79,46 @@ for t = 1:nc
     iWP = iW(PLN,:);
     iWM = iW(MAG,:);
     
+    PL = [TOP.VEOG{2} TOP.HEOG{2}];
+    MG = [TOP.VEOG{1} TOP.HEOG{1}];
+    
     for i = 1:size(iW,2);
         
-        [~,p] = corr(iWP(:,i),[TOP.VEOG{2} TOP.HEOG{2}]);
+        
+        % Planar topographies
+        [~,p] = corr(iWP(:,i),PL);
         
         if any(p < thrp)
-            fprintf('topography correlated component: %d' 
+            fprintf('topography correlated GRAD component: %d ... ',i);
+            
+            while any(p < thrp)
+                fprintf('robust removing\n');
+                iWP(:,i) = Orthog(iWP(:,i)',PL',p,thrp);
+                [~,p]    = corr(iWP(:,i),PL);
+            end
+        end
         
         
+        % Magnetometer topogrpahies
+        [~,p] = corr(iWM(:,i),MG);
         
-        
+        if any(p < thrp)
+            fprintf('topography correlated MAG component: %d ... ',i);
+            
+            while any(p < thrp)
+                fprintf('robust removing\n');
+                iWM(:,i) = Orthog(iWM(:,i)',MG',p,thrp);
+                [~,p]    = corr(iWM(:,i),MG);
+            end
+        end        
+    end
+    
+    
+    
+    % review?
+    if review
+        check_covar_ica(cD,(C'*iW')');
+        drawnow;
     end
     
     % store
@@ -103,11 +126,11 @@ for t = 1:nc
     
 end
 
+
 % return
 S = clone(ID,['ica_' ID.fname]);     % clone input
 S(sort(unique([EEG MEG])),:,:) = D;  % update selected channel subspace
 S.save;
-
 
 end
 
@@ -126,4 +149,12 @@ end
 O = O/j;
 
 end
+
+function W = wts(S)
+
+Y     = S.REF(:,2);
+[v,i] = max(S.REF(:,2));
+[~,I] = sort(Y,'descend');
+
+wts = (1:length(I)) / length(I);
 
