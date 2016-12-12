@@ -1,6 +1,14 @@
-function S = FastICA_MEEG_AS_2(ID,NC)
+function S = FastICA_MEEG_AS_2(ID,NC,UL,fname,bonf)
+% ICA for SPM MEEG
+% - Temporal & spatial ica
+% - ID is an spm meeg file
+% - NC is maximum number of components
+% - UL is upper limit on number to remove
+% AS2016
 
-addpath('~/Downloads/FastICA_25/'); review = 1; w = 2;
+addpath(genpath('/home/as08/old_spm12/'));
+addpath('/home/as08/Downloads/FastICA_25/'); review = 0; ;
+if ischar(ID); ID = spm_eeg_load(ID); end
 
 EOG(1) = find(strcmp(ID.chanlabels,'EOG061'));
 EOG(2) = find(strcmp(ID.chanlabels,'EOG062'));
@@ -36,9 +44,24 @@ if nargin < 2;
     NC = size(D,1);
 end
 
+% Max number rejected components
+if nargin < 3
+    UL = [];
+end
+
+% new file name [clone]
+if nargin < 4
+    fname = 'nica_';
+end
+
+% bonferroni or not
+if nargin < 5
+     thrp = .05;
+else thrp = .5 / NC;
+end
+
 
 nc    = size(D,3);
-thrp  = .5 / NC;
 for t = 1:nc
     
     fprintf('Finding components in trial %d\n',t);
@@ -58,14 +81,14 @@ for t = 1:nc
         e = EOG(:,:,t);
         c = C  (i,:);
         
-        [~,p] = corr(c', e');
+        [Q,p] = corr(c', e');
         
         if any(p < thrp)
             fprintf('found EOG correlated component: %d ... \n',i);
-            C(i,:) = c*0;
-
+            p_temp(i,:) = p;
         end
     end
+    
 
     
     % Topography correlated
@@ -80,24 +103,43 @@ for t = 1:nc
     for i = 1:size(iW,2);       
         
         % Planar topographies
-        [~,p] = corr(iWP(:,i),PL);
+        [Q,p] = corr(iWP(:,i),PL);
         
         if any(p < thrp)
             fprintf('topography correlated GRAD component: %d ... \n',i);
-            iWP(:,i) = iWP(:,i)*0;
+            p_grad(i,:) = p;
         end
         
         
         % Magnetometer topogrpahies
-        [~,p] = corr(iWM(:,i),MG);
+        [Q,p] = corr(iWM(:,i),MG);
         
         if any(p < thrp)
             fprintf('topography correlated MAG component: %d ... \n',i);
-            iWM(:,i) = iWM(:,i)*0;
+            p_mag(i,:) = p;
         end        
     end
     
     
+    % sort out common spatial and temporal component correlates
+    %-----------------------------------------------------------
+    try p_grad ; catch p_grad = []; end
+    try p_mag  ; catch p_mag  = []; end
+    
+    [i1 i2]    = find(p_grad);
+    [i3 i4]    = find(p_mag);
+    [tmpc,pos] = find(p_temp);
+    topos      = unique([i1 i3]);
+        
+    forkill = tmpc(ismember(tmpc,topos));
+    forkill = unique(forkill);
+    try forkill = forkill(1:UL); end
+    
+    fprintf('removing %d components\n',length(forkill));
+    
+    C(forkill,:)  = 0;
+    iW(:,forkill) = 0;
+
     
     % review?
     if review
@@ -112,32 +154,8 @@ end
 
 
 % return
-S = clone(ID,['nica_' ID.fname]);     % clone input
+S = clone(ID,[fname ID.fname]);     % clone input
 S(sort(unique([EEG MEG])),:,:) = D;  % update selected channel subspace
 S.save;
 
 end
-
-% function O = Orthog(c,e,p,thrp,W)
-% 
-% v = find(p<thrp); % vert or horz
-% 
-% 
-% if ~isempty(v)
-%     for j = 1:length(v)
-%         % Regression apparatus
-%         
-%         s       = HighResMeanFilt(polyval(polyfit(e(v(j),:),c,1),e(v(j),:)),1,8);  
-%         try   O = O + s;
-%         catch O =     s;
-%         end
-%     end
-%     
-%     O = O/j;
-% else
-%     O = c;
-% end
-% 
-% end
-
-
