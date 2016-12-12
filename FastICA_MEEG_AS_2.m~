@@ -129,7 +129,7 @@ for t = 1:nc
     [i1 i2]    = find(p_grad);
     [i3 i4]    = find(p_mag);
     [tmpc,pos] = find(p_temp);
-    topos      = unique([i1 i3]);
+    topos      = unique([i1(:);i3(:)]);
         
     forkill = tmpc(ismember(tmpc,topos));
     forkill = unique(forkill);
