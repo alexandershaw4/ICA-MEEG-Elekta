@@ -4,6 +4,7 @@ function S = FastICA_MEEG_AS_2(ID,NC,UL,fname,bonf)
 % - ID is an spm meeg file
 % - NC is maximum number of components
 % - UL is upper limit on number to remove
+% - fname is the prepend to the filename, eg. 'ica_'
 % AS2016
 
 addpath(genpath('/home/as08/old_spm12/'));
@@ -39,10 +40,10 @@ PLN = find(~cellfun(@isempty,PLN));
 MAG = find(~ismember(MEG,PLN));
 
 
-% Max no. components 
-if nargin < 2;
-    NC = size(D,1);
-end
+% % Max no. components 
+% if nargin < 2 
+%     NC = size(D,1);
+% end
 
 % Max number rejected components
 if nargin < 3
@@ -57,7 +58,7 @@ end
 % bonferroni or not
 if nargin < 5
      thrp = .05;
-else thrp = .5 / NC;
+else thrp = .05 / NC;
 end
 
 
@@ -67,8 +68,10 @@ for t = 1:nc
     fprintf('Finding components in trial %d\n',t);
     cD = squeeze(D(:,:,t)); % Chan x Samps
     
-    
-    [C, A, W] = fastica(cD,'numOfIC',NC);
+    if nargin < 2 || isempty(NC)
+         [C, A, W] = fastica(cD);
+    else [C, A, W] = fastica(cD,'numOfIC',NC);
+    end
     
     % A = Chans x copmonents
     % C = Components x samples
@@ -125,33 +128,41 @@ for t = 1:nc
     %-----------------------------------------------------------
     try p_grad ; catch p_grad = []; end
     try p_mag  ; catch p_mag  = []; end
+    try p_temp ; catch p_temp = []; end
     
     [i1 i2]    = find(p_grad);
     [i3 i4]    = find(p_mag);
     [tmpc,pos] = find(p_temp);
-    topos      = unique([i1 i3]);
+    topos      = unique([i1(:);i3(:)]);
         
     forkill = tmpc(ismember(tmpc,topos));
     forkill = unique(forkill);
-    try forkill = forkill(1:UL); end
+    if ~isempty(UL)
+        try forkill = forkill(1:UL); end
+    end
     
     fprintf('removing %d components\n',length(forkill));
     
+    try AllGone(t,:) = length(forkill); end
+    
     C(forkill,:)  = 0;
     iW(:,forkill) = 0;
-
+    
     
     % review?
-    if review
+    if review && ~isempty(forkill)
         check_covar_ica(cD,(C'*iW')');
         drawnow;
     end
     
     % store
-    D(:,:,t) = ( C'*iW')';
+    if ~isempty(forkill)
+        D(:,:,t) = ( C'*iW')';
+    end
     
 end
 
+fprintf('Removed an average of %d components per trial',mean(AllGone));
 
 % return
 S = clone(ID,[fname ID.fname]);     % clone input
