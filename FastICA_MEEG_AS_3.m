@@ -1,10 +1,13 @@
-function S = FastICA_MEEG_AS_2(ID,NC,UL,fname,bonf)
-% ICA for SPM MEEG
+function S = FastICA_MEEG_AS_3(ID,NC,UL,fname,time,bonf)
+% Window based ICA for SPM MEEG
 % - Temporal & spatial ica
 % - ID is an spm meeg file
 % - NC is maximum number of components
 % - UL is upper limit on number to remove
 % - fname is the prepend to the filename, eg. 'ica_'
+% - this version longer epochs [spec time in s]:
+%   concatenates n trials / epochs to make time window, runs ica & correls,
+%   adjusts data, then places back into epoch / trial positions in data
 % AS2016
 
 addpath(genpath('/home/as08/old_spm12/'));
@@ -51,22 +54,39 @@ if nargin < 3
 end
 
 % new file name [clone]
-if nargin < 4
+if nargin < 4 || isempty(fname)
     fname = 'nica_';
 end
 
-% bonferroni or not
+% time search
 if nargin < 5
+    time = 10 ;
+end
+
+% bonferroni or not
+if nargin < 6
      thrp = .05;
 else thrp = .05 / NC;
 end
 
+% sort num trials to concat
+t     = ID.time;
+tocat = round(time/t(end))+1;
 
-nc    = size(D,3);
+nc    = round(size(ID,3)/tocat)-1;
+win   = 1;
 for t = 1:nc
+    clear p_grad p_temp p_mag
     
-    fprintf('Finding components in trial %d\n',t);
-    cD = squeeze(D(:,:,t)); % Chan x Samps
+    fprintf('Finding components in time window %d\n',t);
+    
+    cD  = squeeze(D(:,:,[win:win+tocat-1])); % Chan x Samps x [ntrials in time]
+    cD  = reshape(cD,[size(cD,1) size(cD,2)*size(cD,3)]);
+    e   = EOG(:,:,[win:win+tocat-1]);
+    e   = reshape(e,[size(e,1) size(e,2)*size(e,3)]);
+    
+    fprintf('including trials %d to %d in this window\n',win,win+tocat);
+    win = win + tocat;
     
     if nargin < 2 || isempty(NC)
          [C, A, W] = fastica(cD);
@@ -81,7 +101,7 @@ for t = 1:nc
     %----------------------------------
     for i = 1:size(C,1)
         
-        e = EOG(:,:,t);
+        %e = EOG(:,:,t);
         c = C  (i,:);
         
         [Q,p] = corr(c', e');
@@ -170,12 +190,14 @@ for t = 1:nc
     
     % store
     if ~isempty(forkill)
-        D(:,:,t) = ( C'*iW')';
+        %D(:,:,t) = ( C'*iW')';
+        new =reshape( ( C'*iW')' ,[size(cD,1) size(ID,2) (tocat)]);
+        D(:,:,[win:win+tocat-1]) = new;
     end
     
 end
 
-fprintf('Removed an average of %d components per trial',mean(AllGone));
+fprintf('Removed an average of %d components per trial\n',mean(AllGone));
 
 % return
 S = clone(ID,[fname ID.fname]);     % clone input
