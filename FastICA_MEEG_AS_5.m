@@ -15,8 +15,8 @@ function S = FastICA_MEEG_AS_5(ID,NC,UL,fname,time,bonf)
 %   1) ICA MEG chans. Find components that are both spatially & temporally
 %   correlated, and remove [to a new matrix].
 %   2) ICA EEG channs. Find components that are temporally correlated
-%   with the components identified for removal in the MEG channel - remove
-%   these from the EEG
+%   with the components identified for removal in the MEG channel & the EOG
+%   channel - remove these from the EEG
 %
 % AS2016
 
@@ -51,12 +51,6 @@ PLN = strfind(LAB,'MEGPLANAR');
 PLN = find(~cellfun(@isempty,PLN));
 MAG = find(~ismember(MEG,PLN));
 
-
-% % Max no. components 
-% if nargin < 2 
-%     NC = size(D,1);
-% end
-
 % Max number rejected components
 if nargin < 3
     UL = [];
@@ -81,9 +75,11 @@ end
 % sort num trials to concat
 t     = ID.time;
 tocat = round(time/t(end))+1;
-
 nc    = round(size(ID,3)/tocat)-1;
 win   = 1;
+
+% start loop over windows
+%------------------------------
 for t = 1:nc
     clear p_grad p_temp p_mag
     
@@ -175,8 +171,8 @@ for t = 1:nc
     % find eeg components that correlate with the signif meg components
     %-------------------------------------------------------------------
     clear C1 W1 sigp
-    C1 = C(forkill,:);
-    W1 = W(:,forkill);
+    C1  = C(forkill,:);
+    W1  = W(:,forkill);
     iWe = pinv(We);
     
     for i = 1:size(C1,1)
@@ -197,10 +193,10 @@ for t = 1:nc
     
     fprintf('removing %d EEG comps correlated with removed MEG comps\n',length(eeg_kill));
     
-    
-    
+    % keep track of total components removed each window
     try AllGone(t,:) = length(forkill)+length(eeg_kill); end
     
+    % plot channels, components and projections if needed
     if plotcor && ~isempty(forkill)
         subplot(311), plot(e(1,:));hold on;plot(e(2,:));title('EOGs');
         subplot(334), plot(cD(MEG,:)'),title('Original [MEG]');
