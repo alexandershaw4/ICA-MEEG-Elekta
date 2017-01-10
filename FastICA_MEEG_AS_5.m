@@ -4,10 +4,20 @@ function S = FastICA_MEEG_AS_5(ID,NC,UL,fname,time,bonf)
 % - ID is an spm meeg file
 % - NC is maximum number of components
 % - UL is upper limit on number to remove
-% - fname is the prepend to the filename, eg. 'ica_'
-% - this version longer epochs [spec time in s]:
-%   concatenates n trials / epochs to make time window, runs ica & correls,
+% - fname is the prefix to the filename, eg. 'ica_'
+%
+% - This version works on a specified time window [time input, in s]
+%   Concatenates n trials / epochs needed to make time window, runs ica & correls,
 %   adjusts data, then places back into epoch / trial positions in data
+%
+% - As the topographies are only for the MEG channels [Mags+Grads], this
+%   version implements in 2 steps:
+%   1) ICA MEG chans. Find components that are both spatially & temporally
+%   correlated, and remove [to a new matrix].
+%   2) ICA EEG channs. Find components that are temporally correlated
+%   with the components identified for removal in the MEG channel - remove
+%   these from the EEG
+%
 % AS2016
 
 addpath(genpath('/home/as08/old_spm12/'));
