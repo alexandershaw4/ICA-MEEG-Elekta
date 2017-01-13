@@ -18,12 +18,17 @@ function S = FastICA_MEEG_AS_5(ID,NC,UL,fname,time,bonf)
 %   with the components identified for removal in the MEG channel & the EOG
 %   channel - remove these from the EEG
 %
+% - NB. Installs the fastica package by default is not already installed
+%
 % AS2016
 
 addpath(genpath('/home/as08/old_spm12/'));
 addpath('/home/as08/Downloads/FastICA_25/'); review = 0; plotcor=1;
 if ischar(ID); ID = spm_eeg_load(ID); end
+if ~exist('fasticag'); getfastica;    end
 
+
+% EOG channels
 EOG(1) = find(strcmp(ID.chanlabels,'EOG061'));
 EOG(2) = find(strcmp(ID.chanlabels,'EOG062'));
 EOG    = ID(EOG,:,:);
@@ -249,5 +254,19 @@ S = clone(ID,[fname ID.fname]);     % clone input
 S([EEG],:,:) = D(EEG,:,:);          % update selected channel subspace
 S([MEG],:,:) = D(MEG,:,:);
 S.save;
+
+end
+
+function getfastica()
+
+url= 'https://github.com/davidkun/FastICA/archive/master.zip';
+
+fprintf('Installing fastica algorithm from github\n');
+str = (url);
+urlwrite(str,'fastica.zip');
+unzip('fastica.zip');
+
+addpath('FastICA-master');
+!rm fastica.zip
 
 end
