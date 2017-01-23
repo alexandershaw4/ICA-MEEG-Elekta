@@ -23,16 +23,19 @@ function S = FastICA_MEEG_AS_5(ID,NC,UL,fname,time,bonf)
 % AS2016
 
 addpath(genpath('/home/as08/old_spm12/'));
-addpath('/home/as08/Downloads/FastICA_25/'); review = 0; plotcor=1;line_noise = 1;
+addpath('/home/as08/Downloads/FastICA_25/'); 
 if ischar(ID); ID = spm_eeg_load(ID); end
 if ~exist('fasticag'); getfastica;    end
 
+review      = 0; % review pre- post- covariance
+plotcor     = 0; % plot changes
+line_noise  = 0; % remove line noise [experimental]
+review_topo = 1;
 
 % EOG channels
 EOG(1) = find(strcmp(ID.chanlabels,'EOG061'));
 EOG(2) = find(strcmp(ID.chanlabels,'EOG062'));
 EOG    = ID(EOG,:,:);
-
 
 % Find MEG & EEG channels
 MEG = strfind(ID.chanlabels,'MEG');
@@ -77,15 +80,14 @@ if nargin < 6
 else thrp = .05 / NC;
 end
 
+% remove line noise corr components
 if line_noise
     Fl       = 50;
     nsamples = size(ID,2);
     
-    time = (0:nsamples-1)/ID.fsample;
-    tmp  = exp(1i*2*pi*Fl*time);
-    tmp  = real(tmp);
-    
-    
+    ctime = (0:nsamples-1)/ID.fsample;
+    tmp   = exp(1i*2*pi*Fl*ctime);
+    noise = real(tmp);
 end
 
 % sort num trials to concat
@@ -105,6 +107,11 @@ for t = 1:nc
     cD  = reshape(cD,[size(cD,1) size(cD,2)*size(cD,3)]);
     e   = EOG(:,:,[win:win+tocat-1]);
     e   = reshape(e,[size(e,1) size(e,2)*size(e,3)]);
+    
+    if line_noise
+        lnnoise = repmat(noise,[1 tocat]);
+        e       = [e; lnnoise];
+    end
     
     fprintf('including trials %d to %d in this window\n',win,win+tocat);
     win = win + tocat;
@@ -204,10 +211,11 @@ for t = 1:nc
         end
     end
     
+    try sigp; catch sigp = []; end
     eeg_kill = find(sum(sigp,1));
     
     
-    fprintf('removing %d EEG comps correlated with removed MEG comps\n',length(eeg_kill));
+    fprintf('Removing %d EEG comps correlated with removed MEG comps\n',length(eeg_kill));
     
     % keep track of total components removed each window
     try AllGone(t,:) = length(forkill)+length(eeg_kill); end
@@ -229,6 +237,65 @@ for t = 1:nc
         subplot(339), plot( (Ce'*iWe') ); title('With Removal [EEG]');
         
         drawnow
+    elseif review_topo
+        %review_head(S);
+        bC  = C(forkill,:);
+        biW = iW(:,forkill);
+        
+        bCe  = Ce(eeg_kill,:);
+        biWe = iWe(:,eeg_kill);
+        
+        MEGS = (bC(:,:)'*biW(:,:)')' ;
+        EEGS = (bCe'*biWe')';
+        
+        %use ft topoplotter to get crds
+        cfg.layout = 'neuromag306all.lay';
+        thelay     = ft_prepare_layout(cfg);
+        
+        x   = thelay.pos(1:end-2,1);
+        y   = thelay.pos(1:end-2,2);
+        tri = delaunay(x,y);
+        
+        % MEG Orig
+        subplot(231),...
+        trisurf(tri,x,y,mean( (C'*iW')' ,2));
+        shading interp; view(0,90);
+        set(gca,'visible','off');
+        
+        % MEG BAD Comps
+        subplot(232),...
+        trisurf(tri,x,y,mean(MEGS,2));
+        shading interp; view(0,90);
+        set(gca,'visible','off');
+        
+        C(forkill,:)   = 0;
+        iW(:,forkill)  = 0;  
+        
+        % MEG Cleaned Comps
+        subplot(233),...
+        trisurf(tri,x,y,mean( (C'*iW')' ,2));    
+        shading interp; view(0,90);
+        set(gca,'visible','off');        
+        
+        ex   = S.EEG(:,1);
+        ey   = S.EEG(:,2);
+        etri = delaunay(ex,ey);
+        
+        % EEG Orig
+        sublot(234),...
+        trisurf(etri,ex,ey,mean( (Ce'*iWe')' ,2));
+        view(0,90);
+        
+        sublot(234),...
+        trisurf(etri,ex,ey,mean(EEGS,2));
+        view(0,90);
+        
+        
+        
+        sublot(234),...
+        trisurf(etri,ex,ey,mean(EEGS,2));
+        view(0,90);
+        
     else
         C(forkill,:)  = 0;
         iW(:,forkill) = 0;
@@ -245,6 +312,7 @@ for t = 1:nc
 %         check_covar_ica(cD,(C'*iW')');
 %         drawnow;
 %     end
+
 
     
     % store
