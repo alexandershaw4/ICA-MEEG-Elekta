@@ -271,12 +271,16 @@ for t = 1:nc
         trisurf(tri,x,y,mean( (C'*iW')' ,2));
         shading interp; view(0,90);
         set(gca,'visible','off');
+        title('ORIG','fontsize',20);
+        set(findall(gca, 'type', 'text'), 'visible', 'on');
         
         % MEG BAD Comps
         subplot(232),...
         trisurf(tri,x,y,mean(MEGS,2));
         shading interp; view(0,90);
         set(gca,'visible','off');
+        title('BAD','fontsize',20);
+        set(findall(gca, 'type', 'text'), 'visible', 'on');
         
         % remove bad comps from MEG
         C(forkill,:)   = 0;
@@ -287,6 +291,8 @@ for t = 1:nc
         trisurf(tri,x,y,mean( (C'*iW')' ,2));    
         shading interp; view(0,90);
         set(gca,'visible','off');        
+        title('CLEANED','fontsize',20);
+        set(findall(gca, 'type', 'text'), 'visible', 'on');
         
         ex   = S.EEG(:,1);
         ey   = S.EEG(:,2);
