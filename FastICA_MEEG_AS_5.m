@@ -92,11 +92,14 @@ end
 
 % sort num trials to concat
 t     = ID.time;
-tocat = round(time/t(end))+1;
-nc    = round(size(ID,3)/tocat)-1;
+tocat = round(time/( t(end)-t(1) ));
+nc    = ceil(size(ID,3)/tocat);
 win   = 1;
 
-
+for t = 1:nc
+    thewin{t} = [win:win+tocat-1];
+    win       = win + tocat;
+end
 
 
 % start loop over windows
@@ -106,11 +109,16 @@ for t = 1:nc
     
     fprintf('Finding components in time window %d\n',t);
     
+    if t == length(thewin); 
+        thewin{t} = thewin{t}(1):size(Data,3);
+        tocat     = length(thewin{t});
+    end
+    
     % Make the time window of interest by concatenating trials
     %----------------------------------------------------------
-    cD  = squeeze(ID(:,:,[win:win+tocat-1])); 
+    cD  = squeeze(ID(:,:,thewin{t})); 
     cD  = reshape(cD,[size(cD,1) size(cD,2)*size(cD,3)]);
-    e   = EOG(:,:,[win:win+tocat-1]);
+    e   = EOG(:,:,thewin{t});
     e   = reshape(e,[size(e,1) size(e,2)*size(e,3)]);
     
     if line_noise
@@ -118,8 +126,7 @@ for t = 1:nc
         e       = [e; lnnoise];
     end
     
-    fprintf('including trials %d to %d in this window\n',win,win+tocat);
-    win = win + tocat;
+    fprintf('including trials %d to %d in this window\n',thewin{t}(1),thewin{t}(end));
     
     % Do the ICA estimation
     %------------------------------------------------
@@ -345,8 +352,8 @@ for t = 1:nc
         %D(:,:,t) = ( C'*iW')';
         mnew = reshape( ( C'*iW')'   ,[size(MEG,2) size(ID,2) (tocat)]);
         enew = reshape( ( Ce'*iWe')' ,[size(EEG,2) size(ID,2) (tocat)]);
-        D(MEG,:,[win:win+tocat-1]) = mnew;
-        D(EEG,:,[win:win+tocat-1]) = enew;
+        D(MEG,:,thewin{t}) = mnew;
+        D(EEG,:,thewin{t}) = enew;
     end
     
 end
