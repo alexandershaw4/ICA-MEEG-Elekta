@@ -14,9 +14,9 @@ if ndims(mIn) > 2;
     mIn  = VecRetainDim(mIn,1);
 end
 
-fprintf('Mean window filtering\n');
+%fprintf('Mean window filtering\n');
 M = smoothmat(full(mIn),m,m);
-fprintf('Resampling\n');
+%fprintf('Resampling\n');
 y = imresize(full(M),n);
 
 %M = imresize(full(mIn),n);
