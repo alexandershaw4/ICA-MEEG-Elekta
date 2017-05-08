@@ -110,7 +110,7 @@ for t = 1:nc
     fprintf('Finding components in time window %d\n',t);
     
     if t == length(thewin); 
-        thewin{t} = thewin{t}(1):size(Data,3);
+        thewin{t} = thewin{t}(1):size(ID,3);
         tocat     = length(thewin{t});
     end
     
