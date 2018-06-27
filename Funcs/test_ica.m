@@ -1,12 +1,13 @@
 
 % make a fake signal
 global noisemodel
-noisemodel.x = randn(1,2000);
+%noisemodel.x = randn(1,2000);
+noisemodel.x = 1:2000;
 
-o =     make_oscillations(50,1,4);
-o = [o;  make_oscillations(20,1,4)];
-o = [o;  make_oscillations(80,1,4)];
-o = [o;  make_oscillations(40,1,4)];
+o =     make_oscillations(50,0,4);
+o = [o;  make_oscillations(20,0,4)];
+o = [o;  make_oscillations(80,0,4)];
+o = [o;  make_oscillations(40,0,4)];
 
 
 
